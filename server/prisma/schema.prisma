@@ -1,0 +1,123 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int     @id @default(autoincrement())
+  firstName   String
+  lastName    String
+  email       String  @unique
+  password    String
+  phoneNumber String
+  gender      String
+  avatarUrl String?  // optional
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // relations
+  folders     Folder[]
+  files       File[]
+  comments    Comment[]
+  activities  ActivityLog[]
+  sharedFiles SharedFile[] @relation("SharedWithUsers")
+}
+model Folder {
+  id        String   @id @default(uuid())
+  name      String
+  parentId  String? 
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // relations
+  owner   User   @relation(fields: [ownerId], references: [id])
+  files   File[]
+  parent  Folder? @relation("FolderHierarchy", fields: [parentId], references: [id])
+  subfolders Folder[] @relation("FolderHierarchy")
+
+  sharedFiles SharedFile[]
+}
+
+model File {
+  id              String   @id @default(uuid())
+  name            String
+  fileType        String
+  size            Int
+  url             String
+  folderId        String?
+  ownerId         String
+  storageProvider String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // relations
+  folder    Folder? @relation(fields: [folderId], references: [id])
+  owner     User    @relation(fields: [ownerId], references: [id])
+  metadata  FileMetadata[]
+  comments  Comment[]
+  shared    SharedFile[]
+}
+
+model FileMetadata {
+  id        String   @id @default(uuid())
+  fileId    String
+  key       String
+  value     String
+  createdAt DateTime @default(now())
+
+  // relations
+  file File @relation(fields: [fileId], references: [id])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  fileId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  // relations
+  file File @relation(fields: [fileId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+}
+
+model SharedFile {
+  id               String   @id @default(uuid())
+  fileId           String?
+  folderId         String?
+  sharedWithUserId String
+  sharedByUserId   String
+  permission       String
+  createdAt        DateTime @default(now())
+
+  // relations
+  file       File?  @relation(fields: [fileId], references: [id])
+  folder     Folder? @relation(fields: [folderId], references: [id])
+  sharedWith User   @relation("SharedWithUsers", fields: [sharedWithUserId], references: [id])
+  sharedBy   User   @relation(fields: [sharedByUserId], references: [id])
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  userId     String
+  action     String
+  targetId   String?
+  targetType String?
+  timestamp  DateTime @default(now())
+  ip         String?
+
+  // relations
+  user User @relation(fields: [userId], references: [id])
+}
